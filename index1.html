@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitLab Project Uploader</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; }
+    label { display: block; margin-top: 1rem; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 0.5rem; }
+    button { margin-top: 1rem; padding: 0.6rem 1.2rem; font-size: 1rem; }
+    #links { background: #f4f4f4; padding: 1rem; max-height: 300px; overflow-y: auto; }
+    a { display: block; margin-bottom: 0.5rem; color: #007bff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>GitLab Project Uploader</h1>
+
+  <label for="token">🔐 GitLab Private Token:</label>
+  <input type="text" id="token" placeholder="Nhập token của bạn" required />
+
+  <label for="group_id">👥 Group ID:</label>
+  <input type="text" id="group_id" placeholder="Nhập Group ID" required />
+
+  <label for="files">📁 Chọn folder chứa file (.txt hoặc .md):</label>
+  <input type="file" id="files" webkitdirectory directory multiple accept=".txt,.md" required />
+
+  <button id="uploadBtn">📤 Upload</button>
+
+  <h2>🔗 Các liên kết đã tạo:</h2>
+  <div id="links">Chưa có kết quả</div>
+
+  <script>
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const token = document.getElementById('token').value.trim();
+      const group_id = document.getElementById('group_id').value.trim();
+      const filesInput = document.getElementById('files');
+      const linksContainer = document.getElementById('links');
+
+      if (!token || !group_id) {
+        alert('Vui lòng nhập token và group ID');
+        return;
+      }
+
+      if (filesInput.files.length === 0) {
+        alert('Vui lòng chọn ít nhất 1 file');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('token', token);
+      formData.append('group_id', group_id);
+
+      for (const file of filesInput.files) {
+        formData.append('files', file, file.webkitRelativePath);
+      }
+
+      linksContainer.textContent = '⏳ Đang upload...';
+
+      try {
+        const response = await fetch('https://toolgitlab.onrender.com/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          linksContainer.textContent = `❌ Lỗi server: ${response.status}\n${errText}`;
+          return;
+        }
+
+        const links = await response.json();
+        if (!Array.isArray(links)) {
+          linksContainer.textContent = '❌ Phản hồi không hợp lệ từ server.';
+          return;
+        }
+
+        if (links.length === 0) {
+          linksContainer.textContent = '⚠️ Không có liên kết nào được tạo.';
+          return;
+        }
+
+        // Reset
+        linksContainer.innerHTML = '';
+        links.forEach(link => {
+          const a = document.createElement('a');
+          a.href = link;
+          a.target = '_blank';
+          a.textContent = link;
+          linksContainer.appendChild(a);
+        });
+
+      } catch (err) {
+        linksContainer.textContent = '❌ Lỗi khi gửi request: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
